@@ -34,7 +34,7 @@ class AnsiColorModeTest extends TestCase
     {
         yield ['#606702', [
             AnsiColorMode::Ansi8->name => 100,
-            AnsiColorMode::Ansi4->name => 0,
+            AnsiColorMode::Ansi4->name => 3,
         ]];
 
         yield ['#f40502', [
@@ -71,6 +71,30 @@ class AnsiColorModeTest extends TestCase
             AnsiColorMode::Ansi8->name => 231,
             AnsiColorMode::Ansi4->name => 7,
         ]];
+    }
+
+    #[DataProvider('provideAnsi4ClosestHue')]
+    public function testAnsi4PicksClosestHue(string $colorHex, int $expected)
+    {
+        $this->assertSame((string) $expected, AnsiColorMode::Ansi4->convertFromHexToAnsiColorCode($colorHex));
+    }
+
+    public static function provideAnsi4ClosestHue(): \Generator
+    {
+        yield 'dark red' => ['#800000', 1];
+        yield 'orange' => ['#ff8000', 3];
+        yield 'olive' => ['#808000', 3];
+        yield 'dark green' => ['#006400', 2];
+        yield 'teal' => ['#008080', 6];
+        yield 'navy' => ['#000080', 4];
+        yield 'royal blue' => ['#4169e1', 4];
+        yield 'purple' => ['#800080', 5];
+        yield 'pink' => ['#ff1493', 5];
+        yield 'crimson' => ['#dc143c', 1];
+        yield 'almost black' => ['#200010', 0];
+        yield 'dark grey' => ['#555555', 0];
+        yield 'light grey' => ['#c0c0c0', 7];
+        yield 'pastel' => ['#eec7fa', 7];
     }
 
     public function testColorsConversionWithoutSharp()

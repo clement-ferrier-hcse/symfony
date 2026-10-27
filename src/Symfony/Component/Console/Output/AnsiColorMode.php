@@ -76,9 +76,29 @@ enum AnsiColorMode
         };
     }
 
+    /**
+     * Picks the 4-bit Ansi color with the closest hue.
+     *
+     * Achromatic colors (greys, very dark or desaturated colors) are mapped to black or white
+     * depending on their brightness, other colors to the nearest of the 6 primary/secondary hues.
+     */
     private function degradeHexColorToAnsi4(int $r, int $g, int $b): int
     {
-        return round($b / 255) << 2 | (round($g / 255) << 1) | round($r / 255);
+        $max = max($r, $g, $b);
+        $delta = $max - min($r, $g, $b);
+
+        if ($max < 51 || $delta < $max / 4) {
+            return $max < 128 ? 0 : 7;
+        }
+
+        $hue = match ($max) {
+            $r => fmod(($g - $b) / $delta, 6),
+            $g => ($b - $r) / $delta + 2,
+            default => ($r - $g) / $delta + 4,
+        };
+
+        // red, yellow, green, cyan, blue, magenta
+        return [1, 3, 2, 6, 4, 5][((int) round($hue) + 6) % 6];
     }
 
     /**
