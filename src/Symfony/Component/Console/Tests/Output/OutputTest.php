@@ -13,8 +13,11 @@ namespace Symfony\Component\Console\Tests\Output;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Console\Color;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;
+use Symfony\Component\Console\Output\AnsiColorMode;
 use Symfony\Component\Console\Output\Output;
+use Symfony\Component\Console\Terminal;
 
 class OutputTest extends TestCase
 {
@@ -140,6 +143,37 @@ class OutputTest extends TestCase
         $output->clear();
         $output->writeln('<bar>foo</bar>');
         $this->assertEquals("<bar>foo</bar>\n", $output->output, '->writeln() do nothing when a style does not exist');
+    }
+
+    public function testWriteReportsDegradedColorsInDebugMode()
+    {
+        Color::flushDegradedColors();
+        Terminal::setColorMode(AnsiColorMode::Ansi4);
+
+        try {
+            $output = new TestOutput(Output::VERBOSITY_DEBUG, true);
+            $output->writeln('<fg=#00ffcc>foo</>');
+            $output->writeln('<fg=#00ffcc>bar</>');
+
+            $this->assertSame("Color degraded from \"#00ffcc\" to \"cyan\" (Ansi4 color mode).\n\033[36mfoo\033[39m\n\033[36mbar\033[39m\n", $output->output);
+        } finally {
+            Terminal::setColorMode(null);
+        }
+    }
+
+    public function testWriteDoesNotReportDegradedColorsWithoutDebugMode()
+    {
+        Terminal::setColorMode(AnsiColorMode::Ansi4);
+
+        try {
+            $output = new TestOutput(Output::VERBOSITY_VERY_VERBOSE, true);
+            $output->writeln('<fg=#ff00cc>foo</>');
+
+            $this->assertSame("\033[35mfoo\033[39m\n", $output->output);
+        } finally {
+            Terminal::setColorMode(null);
+            Color::flushDegradedColors();
+        }
     }
 
     #[DataProvider('verbosityProvider')]

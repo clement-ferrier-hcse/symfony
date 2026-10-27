@@ -12,6 +12,7 @@
 namespace Symfony\Component\Console;
 
 use Symfony\Component\Console\Exception\InvalidArgumentException;
+use Symfony\Component\Console\Output\AnsiColorMode;
 
 /**
  * @author Fabien Potencier <fabien@symfony.com>
@@ -48,6 +49,16 @@ final class Color
         'reverse' => ['set' => 7, 'unset' => 27],
         'conceal' => ['set' => 8, 'unset' => 28],
     ];
+
+    /**
+     * @var array<string, string> Degraded colors not reported yet, indexed by color mode and hexadecimal color
+     */
+    private static array $degradedColors = [];
+
+    /**
+     * @var array<string, true> Degraded colors already reported
+     */
+    private static array $reportedColors = [];
 
     private string $foreground;
     private string $background;
@@ -110,6 +121,47 @@ final class Color
         return \sprintf("\033[%sm", implode(';', $unsetCodes));
     }
 
+    /**
+     * Returns the messages describing the hexadecimal colors degraded since the last call.
+     *
+     * Each degraded color is only returned once per color mode.
+     *
+     * @return string[]
+     *
+     * @internal
+     */
+    public static function flushDegradedColors(): array
+    {
+        if (!$messages = self::$degradedColors) {
+            return [];
+        }
+
+        self::$reportedColors += array_fill_keys(array_keys($messages), true);
+        self::$degradedColors = [];
+
+        return array_values($messages);
+    }
+
+    private static function describeDegradedColor(AnsiColorMode $colorMode, string $code): string
+    {
+        if (AnsiColorMode::Ansi4 === $colorMode) {
+            return array_search((int) $code, self::COLORS, true);
+        }
+
+        $index = (int) substr($code, 4);
+
+        if ($index >= 232) {
+            $level = 8 + 10 * ($index - 232);
+
+            return \sprintf('#%02x%02x%02x', $level, $level, $level);
+        }
+
+        $levels = [0, 95, 135, 175, 215, 255];
+        $index -= 16;
+
+        return \sprintf('#%02x%02x%02x', $levels[intdiv($index, 36)], $levels[intdiv($index, 6) % 6], $levels[$index % 6]);
+    }
+
     private function parseColor(string $color, bool $background = false): string
     {
         if ('' === $color) {
@@ -117,7 +169,14 @@ final class Color
         }
 
         if ('#' === $color[0]) {
-            return ($background ? '4' : '3').Terminal::getColorMode()->convertFromHexToAnsiColorCode($color);
+            $colorMode = Terminal::getColorMode();
+            $code = $colorMode->convertFromHexToAnsiColorCode($color);
+
+            if (AnsiColorMode::Ansi24 !== $colorMode && !isset(self::$reportedColors[$key = $colorMode->name.strtolower($color)])) {
+                self::$degradedColors[$key] = \sprintf('Color degraded from "%s" to "%s" (%s color mode).', $color, self::describeDegradedColor($colorMode, $code), $colorMode->name);
+            }
+
+            return ($background ? '4' : '3').$code;
         }
 
         if (isset(self::COLORS[$color])) {

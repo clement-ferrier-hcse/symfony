@@ -11,6 +11,7 @@
 
 namespace Symfony\Component\Console\Output;
 
+use Symfony\Component\Console\Color;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Formatter\OutputFormatterInterface;
 
@@ -133,7 +134,29 @@ abstract class Output implements OutputInterface
                     break;
             }
 
+            if ($this->isDebug() && ($degradedColors = Color::flushDegradedColors()) && $this->isDecorated()) {
+                $this->writeDegradedColors($degradedColors);
+            }
+
             $this->doWrite($message ?? '', $newline);
+        }
+    }
+
+    /**
+     * Reports the hexadecimal colors that were degraded to fit the color mode of the terminal.
+     *
+     * @param string[] $messages
+     */
+    private function writeDegradedColors(array $messages): void
+    {
+        $output = $this instanceof ConsoleOutputInterface ? $this->getErrorOutput() : $this;
+
+        foreach ($messages as $message) {
+            if ($output === $this) {
+                $this->doWrite($message, true);
+            } else {
+                $output->writeln($message, self::OUTPUT_RAW);
+            }
         }
     }
 

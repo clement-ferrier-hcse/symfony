@@ -77,4 +77,34 @@ class ColorTest extends TestCase
             Terminal::setColorMode(null);
         }
     }
+
+    public function testDegradedColorsAreReportedOnce()
+    {
+        Color::flushDegradedColors();
+
+        try {
+            Terminal::setColorMode(AnsiColorMode::Ansi4);
+            new Color('#606702', '#123456');
+            new Color('#606702');
+
+            Terminal::setColorMode(AnsiColorMode::Ansi8);
+            new Color('#606702');
+
+            Terminal::setColorMode(AnsiColorMode::Ansi24);
+            new Color('#654321');
+
+            $this->assertSame([
+                'Color degraded from "#606702" to "yellow" (Ansi4 color mode).',
+                'Color degraded from "#123456" to "blue" (Ansi4 color mode).',
+                'Color degraded from "#606702" to "#878700" (Ansi8 color mode).',
+            ], Color::flushDegradedColors());
+
+            Terminal::setColorMode(AnsiColorMode::Ansi4);
+            new Color('#606702');
+
+            $this->assertSame([], Color::flushDegradedColors());
+        } finally {
+            Terminal::setColorMode(null);
+        }
+    }
 }
