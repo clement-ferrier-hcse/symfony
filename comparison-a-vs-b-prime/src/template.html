@@ -1,0 +1,216 @@
+<title>Ansi4 Implementations Diff</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: same terminal-manual sheet as the two Ansi4 grids. Intro and breakdown on top, then only the disagreeing colors, grouped by result */
+:root {
+  --bg: #f3f4f1;
+  --surface: #ffffff;
+  --fg: #1d211f;
+  --muted: #5d655f;
+  --line: #d5d9d3;
+  --accent: #2f6f4f;
+  --mark: #1d211f;
+  --font-display: "IBM Plex Sans", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #151816; --surface: #1d211f; --fg: #e6e9e4; --muted: #9aa39c; --line: #343a36; --accent: #7cc49d; --mark: #ffffff; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #151816; --surface: #1d211f; --fg: #e6e9e4; --muted: #9aa39c; --line: #343a36; --accent: #7cc49d; --mark: #ffffff; color-scheme: dark; }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 40px 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; }
+header { display: grid; gap: 10px; max-width: 70ch; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 code { font-size: .78em; overflow-wrap: anywhere; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(26px, 4vw, 36px); line-height: 1.15; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 19px; line-height: 1.25; margin: 0; text-wrap: balance; }
+p { margin: 0; color: var(--muted); }
+code { font-family: var(--font-mono); font-size: .92em; color: var(--fg); }
+.impls { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px 28px; max-width: 70ch; }
+.impls > div { display: grid; gap: 2px; min-width: 0; }
+.impls b { font-family: var(--font-mono); font-weight: 500; font-size: 13px; color: var(--fg); }
+
+.controls { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.legend { display: flex; gap: 14px; align-items: center; }
+.legend .sample { width: 54px; height: 54px; flex: none; }
+.legend dl { margin: 0; display: grid; grid-template-columns: auto auto; gap: 2px 10px; font-size: 13px; }
+.legend dt { font-family: var(--font-mono); color: var(--fg); }
+.legend dd { margin: 0; color: var(--muted); }
+.palette { display: grid; gap: 6px; }
+.palette .label, fieldset legend, .tag { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+.swatch { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 12px; }
+.swatch i { width: 14px; height: 14px; border: 1px solid var(--line); }
+fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 6px; min-width: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line); background: var(--surface); }
+.seg label { position: relative; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg span { display: block; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.seg input:checked + span { background: var(--fg); color: var(--bg); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Breakdown: one bar per cause, width is the share of the differing colors */
+.breakdown { display: grid; gap: 14px; max-width: 760px; }
+.bd-group { display: grid; gap: 6px; }
+.bd-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.bd-head b { font-weight: 600; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.bd-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; align-items: baseline; font-size: 13px; }
+.bd-row .name { color: var(--muted); }
+.bd-row .bar { grid-column: 1 / 3; height: 8px; background: var(--line); }
+.bd-row .bar i { display: block; height: 100%; background: var(--accent); }
+.bd-row .num { text-align: right; font-size: 13px; }
+
+.sections { display: grid; gap: 36px; }
+.top { display: grid; gap: 18px; }
+.top-head { display: grid; gap: 4px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.top-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.top-title .count { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.top-head p { font-size: 13px; max-width: 70ch; }
+.sub { display: grid; gap: 8px; }
+.sub-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-family: var(--font-mono); font-size: 12px; }
+.sub-head .count { color: var(--muted); margin-left: auto; }
+.chip { display: inline-flex; align-items: center; gap: 6px; }
+.chip i { width: 14px; height: 14px; border: 1px solid var(--line); flex: none; }
+.chip.big i { width: 18px; height: 18px; }
+.icon { display: inline-block; width: 12px; height: 12px; flex: none; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 8h11M9 4l4 4-4 4' stroke='%23000' stroke-width='5'/%3E%3Cpath d='M2 8h11M9 4l4 4-4 4' stroke='%23fff' stroke-width='2.4'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat; }
+.cells { display: grid; grid-template-columns: repeat(auto-fill, 34px); gap: 3px; }
+.cell { position: relative; width: 34px; height: 34px; padding: 0; border: 0; background: none; display: grid; grid-template: 1fr 1fr / 1fr 1fr; cursor: pointer; font: inherit; }
+.cell .t { grid-column: 1 / 3; }
+.cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; z-index: 1; }
+.cell[aria-pressed="true"] { outline: 2px solid var(--mark); outline-offset: 2px; z-index: 1; }
+.sample { display: grid; grid-template: 1fr 1fr / 1fr 1fr; }
+.sample .t { grid-column: 1 / 3; }
+
+/* Sticky readout for the selected color, so a tap works without hover */
+.inspector { position: sticky; bottom: 0; z-index: 5; background: var(--surface); border-top: 1px solid var(--line); padding-block: 10px calc(10px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.inspector .in { max-width: 1180px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 6px 24px; align-items: center; font-size: 13px; }
+.inspector .in > * { min-width: 0; }
+.inspector .lbl { color: var(--muted); }
+.inspector .num { color: var(--fg); }
+.note { font-size: 13px; max-width: 70ch; }
+@media (prefers-reduced-motion: no-preference) { .seg span { transition: background .15s, color .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">symfony/console · AnsiColorMode::Ansi4</div>
+    <h1>Where two <code>degradeHexColorToAnsi4()</code> implementations disagree</h1>
+    <p id="intro"></p>
+  </header>
+
+  <div class="impls">
+    <div><b>A · closest hue</b><p>Greys have no hue, so they become black below 128 and white from 128. Every other color goes to the nearest of the six hues: red, yellow, green, cyan, blue, magenta.</p></div>
+    <div><b>B′ · #46944 variant</b><p>Greys go to black or white. Below 25% saturation the color becomes black if its brightest channel is under 128, white otherwise. Otherwise each channel is rounded to 0 or 255 on its own and the three bits give the color. Changed from B, which sent every low-saturation color to black.</p></div>
+  </div>
+
+  <section class="breakdown" aria-labelledby="bd-title">
+    <h2 id="bd-title">What B′ does with the colors where they differ</h2>
+    <div id="breakdown" class="breakdown"></div>
+  </section>
+
+  <div class="controls">
+    <div class="legend">
+      <div class="sample cell" style="width:54px;height:54px" aria-hidden="true">
+        <div class="t" style="background:#ffcccc"></div><div style="background:#cd0000"></div><div style="background:#e5e5e5"></div>
+      </div>
+      <dl>
+        <dt>top</dt><dd>target <code>#ffcccc</code></dd>
+        <dt>bottom left</dt><dd>A: red</dd>
+        <dt>bottom right</dt><dd>B′: white</dd>
+        <dt><span class="icon" aria-hidden="true"></span> arrow</dt><dd>from A to B′</dd>
+      </dl>
+    </div>
+    <fieldset>
+      <legend>Group by result of</legend>
+      <div class="seg" role="radiogroup">
+        <label><input type="radio" name="mode" id="mode-b" value="b" checked><span>B′</span></label>
+        <label><input type="radio" name="mode" id="mode-a" value="a"><span>A</span></label>
+      </div>
+    </fieldset>
+    <div class="palette">
+      <div class="label">Rendered with the xterm palette</div>
+      <div class="swatches" id="swatches"></div>
+    </div>
+  </div>
+
+  <div class="sections" id="sections"></div>
+
+  <p class="note">Only the colors where A and B′ give a different 4-bit color are shown. The other <b id="same"></b> agree. Results come from the real <code>degradeHexColorToAnsi4()</code> of each version (A as in the tree, B′ from commit <code>d836a3509f</code>), checked against a standalone port on all 4,096 colors. Cells are sorted from dark to light. Tap or hover a cell for its values. The actual shades depend on the terminal theme.</p>
+</div>
+
+<div class="inspector" aria-live="polite"><div class="in" id="inspector"></div></div>
+
+<script>
+const DATA = /*DATA*/;
+const PALETTE = [["black","#000000"],["red","#cd0000"],["green","#00cd00"],["yellow","#cdcd00"],["blue","#0000ee"],["magenta","#cd00cd"],["cyan","#00cdcd"],["white","#e5e5e5"]];
+const hex = n => n.toString(16).padStart(2, "0");
+const fmt = n => n.toLocaleString("en-US");
+const color = r => "#" + hex(r[0]) + hex(r[1]) + hex(r[2]);
+const sat = ([r, g, b]) => { const v = Math.max(r, g, b) / 255; const d = v - Math.min(r, g, b) / 255; return d === 0 ? 0 : Math.trunc(d * 100 / v); };
+const luma = r => 0.2126 * r[0] + 0.7152 * r[1] + 0.0722 * r[2];
+const rows = DATA.rows.slice().sort((x, y) => luma(x) - luma(y) || color(x).localeCompare(color(y)));
+const S = DATA.stats, N = rows.length;
+const pct = (n, d) => (n * 100 / d).toFixed(1) + "%";
+const $ = id => document.getElementById(id);
+
+$("intro").innerHTML = `Both run on a grid of 16 × 16 × 16 colors, with channel values in steps of 17 from <code>00</code> to <code>ff</code>. That is ${fmt(DATA.total)} colors. They give the same result for ${fmt(DATA.total - N)} and a different one for <b>${fmt(N)}</b> (${pct(N, DATA.total)}). Only those ${fmt(N)} are shown below.`;
+$("same").textContent = fmt(DATA.total - N);
+$("swatches").innerHTML = PALETTE.map(([name, c], i) => `<span class="swatch"><i style="background:${c}"></i>${i} ${name}</span>`).join("");
+$("breakdown").innerHTML = [
+  ["B′ gives black", S.black, [["Saturation under 25% and brightest channel under 128, which A still gives a hue", S.blackLow], ["Saturated but every channel under 128, which A gives a hue", S.blackSat]]],
+  ["B′ gives white", S.white, [["Saturation under 25% and brightest channel at 128 or more, which A gives a hue", S.whiteLow], ["Saturated and every channel at 128 or more, which A gives a hue", S.whiteSat]]],
+  ["B′ gives the neighbouring hue", S.hue, [["Per-channel rounding lands one step away on the hue wheel", S.hue]]]
+].map(([title, total, leaves]) => `<div class="bd-group"><div class="bd-head"><b>${title}</b><span class="num">${fmt(total)} · ${pct(total, N)}</span></div>${leaves.map(([name, n]) => `<div class="bd-row"><span class="name">${name}</span><span class="num">${fmt(n)}</span><span class="bar"><i style="width:${n * 100 / N}%"></i></span></div>`).join("")}</div>`).join("");
+
+const chip = (i, big) => `<span class="chip${big ? " big" : ""}"><i style="background:${PALETTE[i][1]}"></i>${PALETTE[i][0]}</span>`;
+const EXPLAIN = {
+  b: {
+    0: "Colors under 25% saturation with the brightest channel under 128, and saturated colors with every channel under 128.",
+    7: "Colors under 25% saturation with the brightest channel at 128 or more, and saturated colors with every channel at 128 or more."
+  },
+  a: {}
+};
+
+function render(mode) {
+  const top = mode === "b" ? 4 : 3, sub = mode === "b" ? 3 : 4;
+  const groups = new Map();
+  rows.forEach((r, i) => {
+    const k = r[top], s = r[sub];
+    if (!groups.has(k)) groups.set(k, new Map());
+    const g = groups.get(k);
+    if (!g.has(s)) g.set(s, []);
+    g.get(s).push(i);
+  });
+  const who = mode === "b" ? "B′" : "A";
+  $("sections").innerHTML = [...groups.keys()].sort((x, y) => x - y).map(k => {
+    const g = groups.get(k);
+    let count = 0; g.forEach(v => count += v.length);
+    const subs = [...g.keys()].sort((x, y) => x - y).map(s => {
+      const a = mode === "b" ? s : k, b = mode === "b" ? k : s;
+      return `<div class="sub"><div class="sub-head">${chip(a)}<span class="icon" aria-hidden="true"></span>${chip(b)}<span class="count">${g.get(s).length}</span></div><div class="cells">${g.get(s).map(i => {
+        const r = rows[i], t = color(r);
+        return `<button type="button" class="cell" data-i="${i}" aria-pressed="false" title="${t}: A ${PALETTE[r[3]][0]}, B′ ${PALETTE[r[4]][0]}" aria-label="${t}: A ${PALETTE[r[3]][0]}, B′ ${PALETTE[r[4]][0]}"><span class="t" style="background:${t}"></span><span style="background:${PALETTE[r[3]][1]}"></span><span style="background:${PALETTE[r[4]][1]}"></span></button>`;
+      }).join("")}</div></div>`;
+    }).join("");
+    const note = EXPLAIN[mode][k];
+    return `<section class="top"><div class="top-head"><div class="top-title"><h2>${who} gives</h2>${chip(k, true)}<span class="count">${fmt(count)} colors</span></div>${note ? `<p>${note}</p>` : ""}</div>${subs}</section>`;
+  }).join("");
+  select(selected);
+}
+
+let selected = 0;
+function select(i) {
+  selected = i;
+  document.querySelectorAll(".cell[data-i]").forEach(c => c.setAttribute("aria-pressed", String(+c.dataset.i === i)));
+  const r = rows[i], t = color(r);
+  $("inspector").innerHTML = `<span class="chip big"><i style="background:${t}"></i><span class="num">${t}</span></span><span class="lbl">rgb <span class="num">${r[0]} ${r[1]} ${r[2]}</span></span><span class="lbl">saturation <span class="num">${sat(r)}%</span></span><span class="lbl">A ${chip(r[3], true)}</span><span class="lbl">B′ ${chip(r[4], true)}</span>`;
+}
+$("sections").addEventListener("click", e => { const c = e.target.closest(".cell[data-i]"); if (c) select(+c.dataset.i); });
+document.querySelectorAll('input[name="mode"]').forEach(input => input.addEventListener("change", () => render(input.value)));
+render("b");
+</script>

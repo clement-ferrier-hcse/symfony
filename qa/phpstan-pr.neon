@@ -1,0 +1,13 @@
+includes:
+    - /qa/phpstan/vendor/phpstan/phpstan-deprecation-rules/rules.neon
+    - /app/.github/sa-tools/rules.neon
+parameters:
+    level: 5
+    reportUnmatchedIgnoredErrors: false
+    treatPhpDocTypesAsCertain: false
+    tmpDir: /tmp/phpstan-cache
+    paths:
+        - /app/src/Symfony/Component/Console/Output/AnsiColorMode.php
+    scanDirectories:
+        - /app/src/Symfony/Component/Console/Exception
+        - /app/src/Symfony/Component/Console/Output

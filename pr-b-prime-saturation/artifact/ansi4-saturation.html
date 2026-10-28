@@ -1,0 +1,168 @@
+<title>Ansi4 Saturation Variant</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a terminal-manual sheet. Intro and legend on top, 8 slices of the RGB cube (16 x 16 colors each) in a wrapping grid, then the whole-cube counts */
+:root {
+  --bg: #f3f4f1;
+  --surface: #ffffff;
+  --fg: #1d211f;
+  --muted: #5d655f;
+  --line: #d5d9d3;
+  --accent: #2f6f4f;
+  --mark: #1d211f;
+  --font-display: "IBM Plex Sans", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #151816; --surface: #1d211f; --fg: #e6e9e4; --muted: #9aa39c; --line: #343a36; --accent: #7cc49d; --mark: #ffffff; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #151816; --surface: #1d211f; --fg: #e6e9e4; --muted: #9aa39c; --line: #343a36; --accent: #7cc49d; --mark: #ffffff; color-scheme: dark; }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 40px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 32px; }
+header { display: grid; gap: 10px; max-width: 70ch; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(26px, 4vw, 36px); line-height: 1.15; margin: 0; text-wrap: balance; }
+p { margin: 0; color: var(--muted); }
+code { font-family: var(--font-mono); font-size: .92em; color: var(--fg); }
+
+.controls { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.legend { display: flex; gap: 14px; align-items: center; }
+.legend .sample { width: 54px; height: 54px; flex: none; }
+.legend dl { margin: 0; display: grid; grid-template-columns: auto auto; gap: 2px 10px; font-size: 13px; }
+.legend dt { font-family: var(--font-mono); color: var(--fg); }
+.legend dd { margin: 0; color: var(--muted); }
+.palette { display: grid; gap: 6px; }
+.palette .label, fieldset legend { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.swatch { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 12px; }
+.swatch i { width: 14px; height: 14px; border: 1px solid var(--line); }
+fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 6px; }
+.seg { display: inline-flex; border: 1px solid var(--line); background: var(--surface); }
+.seg label { position: relative; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg span { display: block; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.seg input:checked + span { background: var(--fg); color: var(--bg); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.grids { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 28px 24px; }
+figure { margin: 0; display: grid; gap: 8px; min-width: 0; }
+figcaption { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-family: var(--font-mono); font-size: 12px; }
+figcaption b { font-weight: 500; color: var(--fg); }
+figcaption span { color: var(--muted); }
+.board { display: grid; grid-template-columns: 22px 1fr; grid-template-rows: 1fr 18px; gap: 4px; }
+.axis { font-family: var(--font-mono); font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.axis.y { flex-direction: column; writing-mode: vertical-rl; transform: rotate(180deg); align-items: center; justify-content: center; }
+.axis.x { grid-column: 2; align-items: center; justify-content: center; }
+.cells { display: grid; grid-template-columns: repeat(16, 1fr); gap: 1px; aspect-ratio: 1; max-width: 100%; }
+.cell { position: relative; display: grid; grid-template-rows: 1fr 1fr; grid-template-columns: 1fr 1fr; }
+.cell .t { grid-column: 1 / 3; }
+/* White arrow with a dark outline so it reads on any cell color, in both themes */
+.cell.changed::after { content: ""; position: absolute; left: 50%; bottom: 25%; width: 70%; aspect-ratio: 1; max-width: 12px; transform: translate(-50%, 50%); background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 8h11M9 4l4 4-4 4' stroke='%23000' stroke-width='5'/%3E%3Cpath d='M2 8h11M9 4l4 4-4 4' stroke='%23fff' stroke-width='2.4'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat; pointer-events: none; }
+.legend .sample.changed::after { width: 14px; height: 14px; }
+.legend dt .icon { display: inline-block; width: 12px; height: 12px; vertical-align: -1px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 8h11M9 4l4 4-4 4' stroke='%23000' stroke-width='5'/%3E%3Cpath d='M2 8h11M9 4l4 4-4 4' stroke='%23fff' stroke-width='2.4'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat; }
+.mode-target .cell .b, .mode-target .cell .a, .mode-before .cell .t, .mode-before .cell .a, .mode-after .cell .t, .mode-after .cell .b { display: none; }
+.mode-target .cell .t, .mode-before .cell .b, .mode-after .cell .a { grid-area: 1 / 1 / 3 / 3; }
+.note { font-size: 13px; max-width: 70ch; }
+.variant { display: inline-block; font-family: var(--font-mono); font-size: 12px; color: var(--fg); border: 1px solid var(--line); background: var(--surface); padding: 3px 8px; width: fit-content; }
+.facts { display: grid; gap: 12px; max-width: 70ch; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 20px; margin: 0; }
+.tablewrap { overflow-x: auto; max-width: 100%; }
+table { border-collapse: collapse; font-size: 13px; min-width: 100%; }
+th, td { text-align: left; padding: 5px 16px 5px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-family: var(--font-mono); font-size: 12px; font-weight: 400; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+td { font-variant-numeric: tabular-nums; color: var(--fg); }
+td.num, th.num { text-align: right; padding-right: 0; }
+.dot { display: inline-block; width: 10px; height: 10px; border: 1px solid var(--line); margin-right: 6px; vertical-align: -1px; }
+@media (prefers-reduced-motion: no-preference) { .seg span { transition: background .15s, color .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">symfony/console · AnsiColorMode::Ansi4</div>
+    <div class="variant">B′ (#46944 fixed, greys to black or white)</div>
+    <h1>Ansi4 with a saturation check: before and after</h1>
+    <p>Each grid is one slice of the RGB cube at a fixed blue level, with 16 levels of red (rows) and green (columns), <code>00</code> to <code>ff</code> in steps of 17. Every cell shows the requested color on top, the current result bottom left (each channel rounded on its own) and the result of B′ bottom right. Colors with an HSV saturation under 25% become black if their highest channel is under 128, white otherwise. The others keep the per-channel rounding. Greys, white, black and most pastels give the same result as today, so only a few cells change: muted mid-tone colors that were red, green, blue or similar and now become white.</p>
+  </header>
+
+  <div class="controls">
+    <div class="legend">
+      <div class="sample cell changed" aria-hidden="true">
+        <div class="t" style="background:#8a7a7a"></div><div class="b" style="background:#cd0000"></div><div class="a" style="background:#e5e5e5"></div>
+      </div>
+      <dl>
+        <dt>top</dt><dd>target <code>#8a7a7a</code></dd>
+        <dt>bottom left</dt><dd>before: red</dd>
+        <dt>bottom right</dt><dd>after: white</dd>
+        <dt><span class="icon" aria-hidden="true"></span> arrow</dt><dd>result changed</dd>
+      </dl>
+    </div>
+    <fieldset>
+      <legend>Show</legend>
+      <div class="seg" role="radiogroup">
+        <label><input type="radio" name="mode" id="mode-all" value="all" checked><span>All three</span></label>
+        <label><input type="radio" name="mode" id="mode-target" value="target"><span>Target</span></label>
+        <label><input type="radio" name="mode" id="mode-before" value="before"><span>Before</span></label>
+        <label><input type="radio" name="mode" id="mode-after" value="after"><span>After</span></label>
+      </div>
+    </fieldset>
+    <div class="palette">
+      <div class="label">Rendered with the xterm palette</div>
+      <div class="swatches" id="swatches"></div>
+    </div>
+  </div>
+
+  <div class="grids" id="grids"></div>
+
+  <p class="note">An arrow marks the cells whose 4-bit color changed: <b id="total"></b> of 2,048. Data generated by running the real <code>degradeHexColorToAnsi4()</code> of B′ and the current per-channel rounding on each color. The actual shades depend on the terminal theme.</p>
+
+  <section class="facts" aria-labelledby="cube-title">
+    <h2 id="cube-title">Over the whole 24-bit cube</h2>
+    <p>100,272 of 16,777,216 colors change (0.6%). All of them go from a saturated 4-bit color to white. No color changes to black, and no color changes from black or white. Black stays at 2,097,152 colors, white goes from 2,097,152 to 2,197,424.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Before</th><th>After</th><th class="num">Colors</th></tr></thead>
+        <tbody>
+          <tr><td><i class="dot" style="background:#cd0000"></i>1 red</td><td><i class="dot" style="background:#e5e5e5"></i>7 white</td><td class="num">14,303</td></tr>
+          <tr><td><i class="dot" style="background:#00cd00"></i>2 green</td><td><i class="dot" style="background:#e5e5e5"></i>7 white</td><td class="num">14,303</td></tr>
+          <tr><td><i class="dot" style="background:#0000ee"></i>4 blue</td><td><i class="dot" style="background:#e5e5e5"></i>7 white</td><td class="num">14,303</td></tr>
+          <tr><td><i class="dot" style="background:#cdcd00"></i>3 yellow</td><td><i class="dot" style="background:#e5e5e5"></i>7 white</td><td class="num">19,121</td></tr>
+          <tr><td><i class="dot" style="background:#cd00cd"></i>5 magenta</td><td><i class="dot" style="background:#e5e5e5"></i>7 white</td><td class="num">19,121</td></tr>
+          <tr><td><i class="dot" style="background:#00cdcd"></i>6 cyan</td><td><i class="dot" style="background:#e5e5e5"></i>7 white</td><td class="num">19,121</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>In the 2,048 colors shown above, 10 change, all to white: 2 red, 2 green, 1 yellow, 1 blue, 2 magenta, 2 cyan. Black stays at 256 colors and white goes from 256 to 266.</p>
+  </section>
+</div>
+
+<script>
+const DATA = {"rg":[0,17,34,51,68,85,102,119,136,153,170,187,204,221,238,255],"b":[0,36,73,109,146,182,219,255],"grids":[[[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]]],[[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]]],[[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]]],[[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,7],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[2,7],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,7],[1,7],[3,7],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]],[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3],[3,3]]],[[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,7],[6,7],[6,7],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]]],[[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]]],[[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]]],[[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6],[6,6]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]],[[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[5,5],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7],[7,7]]]]};
+const PALETTE = [["black","#000000"],["red","#cd0000"],["green","#00cd00"],["yellow","#cdcd00"],["blue","#0000ee"],["magenta","#cd00cd"],["cyan","#00cdcd"],["white","#e5e5e5"]];
+const hex = n => n.toString(16).padStart(2, "0");
+
+document.getElementById("swatches").innerHTML = PALETTE.map(([name, c], i) => `<span class="swatch"><i style="background:${c}"></i>${i} ${name}</span>`).join("");
+
+let total = 0;
+const grids = document.getElementById("grids");
+DATA.grids.forEach((grid, bi) => {
+  const b = DATA.b[bi];
+  let changed = 0, cells = "";
+  grid.forEach((row, ri) => row.forEach(([before, after], gi) => {
+    const target = "#" + hex(DATA.rg[ri]) + hex(DATA.rg[gi]) + hex(b);
+    const diff = before !== after;
+    if (diff) changed++;
+    cells += `<div class="cell${diff ? " changed" : ""}" title="${target}: ${PALETTE[before][0]} → ${PALETTE[after][0]}"><div class="t" style="background:${target}"></div><div class="b" style="background:${PALETTE[before][1]}"></div><div class="a" style="background:${PALETTE[after][1]}"></div></div>`;
+  }));
+  total += changed;
+  grids.insertAdjacentHTML("beforeend", `<figure><figcaption><b>blue #${hex(b)}</b><span>${changed} of 256 changed</span></figcaption><div class="board"><div class="axis y">red 00 → ff</div><div class="cells">${cells}</div><div class="axis x">green 00 → ff</div></div></figure>`);
+});
+document.getElementById("total").textContent = total;
+
+document.querySelectorAll('input[name="mode"]').forEach(input => input.addEventListener("change", () => {
+  grids.className = "grids" + (input.value === "all" ? "" : " mode-" + input.value);
+}));
+</script>

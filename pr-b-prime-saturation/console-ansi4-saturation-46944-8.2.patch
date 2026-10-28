@@ -1,0 +1,134 @@
+From 9760bbb104ba3a216fc53fa911e9e5ae59fc2005 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Cl=C3=A9ment=20FERRIER?= <clement.ferrier@helloce.fr>
+Date: Wed, 28 Oct 2026 18:38:20 +0000
+Subject: [PATCH] [Console] Restore the saturation check of the Ansi4 color
+ degradation
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Bring back the check of #46944, removed in #50317 because it never took
+effect. Three defects made it dead code: the `(int) $diff * 100 / $v`
+cast precedence gave a saturation of 0 or 100, `0 === round(...)` was
+always false as round() returns a float, and `0 === $diff` was false
+for most colors, as $diff is a float unless every channel is 0 or 255.
+All three are fixed.
+
+Colors with a saturation under 25%, such as greys, white and pastels,
+now become black or white depending on their brightness (the highest
+RGB channel under 128 gives black, the others give white), instead of
+being rounded per channel. Other colors are still rounded per channel.
+
+Co-authored-by: Clément FERRIER <6459155+clfer@users.noreply.github.com>
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/Symfony/Component/Console/CHANGELOG.md    |  1 +
+ .../Console/Output/AnsiColorMode.php          | 24 +++++++++-
+ .../Tests/Output/AnsiColorModeTest.php        | 44 +++++++++++++++++++
+ 3 files changed, 68 insertions(+), 1 deletion(-)
+
+diff --git a/src/Symfony/Component/Console/CHANGELOG.md b/src/Symfony/Component/Console/CHANGELOG.md
+index 815a63ba47..191d4e4917 100644
+--- a/src/Symfony/Component/Console/CHANGELOG.md
++++ b/src/Symfony/Component/Console/CHANGELOG.md
+@@ -4,6 +4,7 @@ CHANGELOG
+ 8.2
+ ---
+ 
++ * Restore the saturation check when converting hexadecimal colors to the 4-bit ANSI color mode: colors with a saturation below 25% (greys, white, pastels) become black or white depending on their brightness
+  * Add `CommandInvocation` and the `%command.invocation%` help placeholder to include the PHP executable or Symfony CLI launcher
+  * Add `CompletionSuggestions::suggestPaths()`, `suggestDirectories()` and `getPathSuggestion()` to let the shell complete file system paths, as `InputFile` arguments and options now do
+  * Pass the `CompletionSuggestions` to the `suggestedValues` closures of arguments and options
+diff --git a/src/Symfony/Component/Console/Output/AnsiColorMode.php b/src/Symfony/Component/Console/Output/AnsiColorMode.php
+index 0e1422a278..c21cd56213 100644
+--- a/src/Symfony/Component/Console/Output/AnsiColorMode.php
++++ b/src/Symfony/Component/Console/Output/AnsiColorMode.php
+@@ -78,7 +78,29 @@ enum AnsiColorMode
+ 
+     private function degradeHexColorToAnsi4(int $r, int $g, int $b): int
+     {
+-        return round($b / 255) << 2 | (round($g / 255) << 1) | round($r / 255);
++        if (0.0 === round($this->getSaturation($r, $g, $b) / 50)) {
++            // greys and nearly grey colors: black or white depending on the brightness
++            return max($r, $g, $b) < 128 ? 0 : 7;
++        }
++
++        return (int) ((round($b / 255) << 2) | (round($g / 255) << 1) | round($r / 255));
++    }
++
++    /**
++     * Returns the HSV saturation of the color, as an integer between 0 and 100.
++     */
++    private function getSaturation(int $r, int $g, int $b): int
++    {
++        $r /= 255.0;
++        $g /= 255.0;
++        $b /= 255.0;
++        $v = max($r, $g, $b);
++
++        if (0.0 === $diff = $v - min($r, $g, $b)) {
++            return 0;
++        }
++
++        return (int) ($diff * 100 / $v);
+     }
+ 
+     /**
+diff --git a/src/Symfony/Component/Console/Tests/Output/AnsiColorModeTest.php b/src/Symfony/Component/Console/Tests/Output/AnsiColorModeTest.php
+index aa1506e26a..db9e4cb665 100644
+--- a/src/Symfony/Component/Console/Tests/Output/AnsiColorModeTest.php
++++ b/src/Symfony/Component/Console/Tests/Output/AnsiColorModeTest.php
+@@ -73,6 +73,50 @@ class AnsiColorModeTest extends TestCase
+         ]];
+     }
+ 
++    #[DataProvider('provideAnsi4SaturationColors')]
++    public function testColorsConversionToAnsi4DependsOnSaturation(string $colorHex, string $expected)
++    {
++        $this->assertSame($expected, AnsiColorMode::Ansi4->convertFromHexToAnsiColorCode($colorHex));
++    }
++
++    public static function provideAnsi4SaturationColors(): \Generator
++    {
++        // fully saturated colors keep the closest of the 8 classical colors
++        yield 'red' => ['#ff0000', '1'];
++        yield 'green' => ['#00ff00', '2'];
++        yield 'yellow' => ['#ffff00', '3'];
++        yield 'blue' => ['#0000ff', '4'];
++        yield 'magenta' => ['#ff00ff', '5'];
++        yield 'cyan' => ['#00ffff', '6'];
++        yield 'dark red' => ['#800000', '1'];
++        yield 'teal' => ['#40bf80', '6'];
++
++        // colors with a saturation of 50% or more are rounded per channel, which can give white
++        yield 'pastel red' => ['#ff8080', '7'];
++        yield 'pastel green' => ['#80ff80', '7'];
++
++        // a saturation of 25% is the lowest one that is rounded per channel
++        yield 'saturation of 25%' => ['#ffbfbf', '7'];
++
++        // colors with a saturation under 25% are black or white, depending on their brightness
++        yield 'saturation below 25%' => ['#ffc0c0', '7'];
++        yield 'very light pink' => ['#ffcccc', '7'];
++        yield 'very light blue' => ['#ccccff', '7'];
++        yield 'very light red' => ['#ffeeee', '7'];
++        yield 'very light green' => ['#eeffee', '7'];
++        yield 'dark desaturated red' => ['#403030', '0'];
++        yield 'dark desaturated blue' => ['#303040', '0'];
++        yield 'just below the brightness threshold' => ['#7f7a7a', '0'];
++        yield 'brightness threshold' => ['#807a7a', '7'];
++
++        // colors without any saturation are black or white
++        yield 'black' => ['#000000', '0'];
++        yield 'dark grey' => ['#404040', '0'];
++        yield 'grey' => ['#808080', '7'];
++        yield 'light grey' => ['#c0c0c0', '7'];
++        yield 'white' => ['#ffffff', '7'];
++    }
++
+     public function testColorsConversionWithoutSharp()
+     {
+         $this->assertSame('8;5;102', AnsiColorMode::Ansi8->convertFromHexToAnsiColorCode('547869'));
+-- 
+2.43.0
+

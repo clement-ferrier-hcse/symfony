@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<psalm errorLevel="1" xmlns="https://getpsalm.org/schema/config" cacheDirectory="/tmp/psalm-cache"
+    findUnusedBaselineEntry="false" findUnusedCode="false" findUnusedIssueHandlerSuppression="false" ensureOverrideAttribute="false"
+    autoloader="/app/src/Symfony/Component/Console/vendor/autoload.php">
+    <projectFiles>
+        <file name="/app/src/Symfony/Component/Console/Output/AnsiColorMode.php" />
+    </projectFiles>
+    <extraFiles>
+        <directory name="/app/src/Symfony/Component/Console/Exception" />
+    </extraFiles>
+</psalm>

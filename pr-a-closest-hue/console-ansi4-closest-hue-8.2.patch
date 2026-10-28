@@ -1,0 +1,131 @@
+From 78ec820239de0f0f10fa9452d2d79175a40e6234 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Cl=C3=A9ment=20FERRIER?= <clement.ferrier@helloce.fr>
+Date: Tue, 27 Oct 2026 11:28:56 +0000
+Subject: [PATCH] [Console] Degrade hex colors to the closest hue in Ansi4 mode
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Rounding each RGB channel independently mapped many colors to the wrong
+4-bit color (e.g. dark olive #606702 became black). Colors are now mapped
+to the nearest of the six primary/secondary hues, and greys, which have
+no hue, to black or white depending on their brightness.
+
+Co-authored-by: Clément FERRIER <6459155+clfer@users.noreply.github.com>
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/Symfony/Component/Console/CHANGELOG.md    |  1 +
+ .../Console/Output/AnsiColorMode.php          | 27 ++++++++++++++++-
+ .../Tests/Output/AnsiColorModeTest.php        | 30 +++++++++++++++++--
+ 3 files changed, 55 insertions(+), 3 deletions(-)
+
+diff --git a/src/Symfony/Component/Console/CHANGELOG.md b/src/Symfony/Component/Console/CHANGELOG.md
+index 815a63ba47..186f35e876 100644
+--- a/src/Symfony/Component/Console/CHANGELOG.md
++++ b/src/Symfony/Component/Console/CHANGELOG.md
+@@ -4,6 +4,7 @@ CHANGELOG
+ 8.2
+ ---
+ 
++ * Degrade hexadecimal colors to the 4-bit color with the closest hue instead of rounding each RGB channel in `Ansi4` mode, and greys to black or white
+  * Add `CommandInvocation` and the `%command.invocation%` help placeholder to include the PHP executable or Symfony CLI launcher
+  * Add `CompletionSuggestions::suggestPaths()`, `suggestDirectories()` and `getPathSuggestion()` to let the shell complete file system paths, as `InputFile` arguments and options now do
+  * Pass the `CompletionSuggestions` to the `suggestedValues` closures of arguments and options
+diff --git a/src/Symfony/Component/Console/Output/AnsiColorMode.php b/src/Symfony/Component/Console/Output/AnsiColorMode.php
+index 0e1422a278..3bc82b1499 100644
+--- a/src/Symfony/Component/Console/Output/AnsiColorMode.php
++++ b/src/Symfony/Component/Console/Output/AnsiColorMode.php
+@@ -76,9 +76,34 @@ enum AnsiColorMode
+         };
+     }
+ 
++    /**
++     * Picks the 4-bit Ansi color with the closest hue.
++     *
++     * Greys have no hue: they are mapped to black or white depending on their brightness.
++     * Other colors are mapped to the nearest of the 6 primary/secondary hues.
++     *
++     * Returns the index of the SGR color (30-37, 40-47). ECMA-48 only names these colors: the hues
++     * target the pure colors #ff0000, #ffff00, #00ff00, #00ffff, #0000ff and #ff00ff, while the RGB
++     * actually displayed depends on the terminal (e.g. xterm's defaults in its XTerm-col.ad file).
++     */
+     private function degradeHexColorToAnsi4(int $r, int $g, int $b): int
+     {
+-        return round($b / 255) << 2 | (round($g / 255) << 1) | round($r / 255);
++        $max = max($r, $g, $b);
++        $delta = $max - min($r, $g, $b);
++
++        if (0 === $delta) {
++            return $max < 128 ? 0 : 7;
++        }
++
++        // hue sector (60 degrees each) between -1 and 5, both meaning magenta
++        $hue = match ($max) {
++            $r => ($g - $b) / $delta,
++            $g => ($b - $r) / $delta + 2,
++            default => ($r - $g) / $delta + 4,
++        };
++
++        // magenta, red, yellow, green, cyan, blue, magenta
++        return [5, 1, 3, 2, 6, 4, 5][(int) round($hue) + 1];
+     }
+ 
+     /**
+diff --git a/src/Symfony/Component/Console/Tests/Output/AnsiColorModeTest.php b/src/Symfony/Component/Console/Tests/Output/AnsiColorModeTest.php
+index aa1506e26a..f6d7199b94 100644
+--- a/src/Symfony/Component/Console/Tests/Output/AnsiColorModeTest.php
++++ b/src/Symfony/Component/Console/Tests/Output/AnsiColorModeTest.php
+@@ -34,7 +34,7 @@ class AnsiColorModeTest extends TestCase
+     {
+         yield ['#606702', [
+             AnsiColorMode::Ansi8->name => 100,
+-            AnsiColorMode::Ansi4->name => 0,
++            AnsiColorMode::Ansi4->name => 3,
+         ]];
+ 
+         yield ['#f40502', [
+@@ -54,7 +54,7 @@ class AnsiColorModeTest extends TestCase
+ 
+         yield ['#eec7fa', [
+             AnsiColorMode::Ansi8->name => 225,
+-            AnsiColorMode::Ansi4->name => 7,
++            AnsiColorMode::Ansi4->name => 5,
+         ]];
+ 
+         yield ['#a8a8a8', [
+@@ -73,6 +73,32 @@ class AnsiColorModeTest extends TestCase
+         ]];
+     }
+ 
++    #[DataProvider('provideAnsi4ClosestHue')]
++    public function testAnsi4PicksClosestHue(string $colorHex, int $expected)
++    {
++        $this->assertSame((string) $expected, AnsiColorMode::Ansi4->convertFromHexToAnsiColorCode($colorHex));
++    }
++
++    public static function provideAnsi4ClosestHue(): \Generator
++    {
++        yield 'dark red' => ['#800000', 1];
++        yield 'orange' => ['#ff8000', 3];
++        yield 'olive' => ['#808000', 3];
++        yield 'dark green' => ['#006400', 2];
++        yield 'teal' => ['#008080', 6];
++        yield 'navy' => ['#000080', 4];
++        yield 'royal blue' => ['#4169e1', 4];
++        yield 'purple' => ['#800080', 5];
++        yield 'pink' => ['#ff1493', 5];
++        yield 'crimson' => ['#dc143c', 1];
++        yield 'very dark magenta' => ['#200010', 5];
++        yield 'dark grey' => ['#555555', 0];
++        yield 'darkest grey rendered white' => ['#808080', 7];
++        yield 'lightest grey rendered black' => ['#7f7f7f', 0];
++        yield 'light grey' => ['#c0c0c0', 7];
++        yield 'pastel lilac' => ['#eec7fa', 5];
++    }
++
+     public function testColorsConversionWithoutSharp()
+     {
+         $this->assertSame('8;5;102', AnsiColorMode::Ansi8->convertFromHexToAnsiColorCode('547869'));
+-- 
+2.43.0
+
