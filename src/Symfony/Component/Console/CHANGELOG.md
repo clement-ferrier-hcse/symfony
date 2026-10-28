@@ -4,6 +4,7 @@ CHANGELOG
 8.2
 ---
 
+ * Restore the saturation check when converting hexadecimal colors to the 4-bit ANSI color mode: colors with a saturation below 25% (greys, white, pastels) become black or white depending on their brightness
  * Add `CommandInvocation` and the `%command.invocation%` help placeholder to include the PHP executable or Symfony CLI launcher
  * Add `CompletionSuggestions::suggestPaths()`, `suggestDirectories()` and `getPathSuggestion()` to let the shell complete file system paths, as `InputFile` arguments and options now do
  * Pass the `CompletionSuggestions` to the `suggestedValues` closures of arguments and options

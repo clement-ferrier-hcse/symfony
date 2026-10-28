@@ -78,7 +78,29 @@ enum AnsiColorMode
 
     private function degradeHexColorToAnsi4(int $r, int $g, int $b): int
     {
-        return round($b / 255) << 2 | (round($g / 255) << 1) | round($r / 255);
+        if (0.0 === round($this->getSaturation($r, $g, $b) / 50)) {
+            // greys and nearly grey colors: black or white depending on the brightness
+            return max($r, $g, $b) < 128 ? 0 : 7;
+        }
+
+        return (int) ((round($b / 255) << 2) | (round($g / 255) << 1) | round($r / 255));
+    }
+
+    /**
+     * Returns the HSV saturation of the color, as an integer between 0 and 100.
+     */
+    private function getSaturation(int $r, int $g, int $b): int
+    {
+        $r /= 255.0;
+        $g /= 255.0;
+        $b /= 255.0;
+        $v = max($r, $g, $b);
+
+        if (0.0 === $diff = $v - min($r, $g, $b)) {
+            return 0;
+        }
+
+        return (int) ($diff * 100 / $v);
     }
 
     /**
